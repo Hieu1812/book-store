@@ -48,7 +48,7 @@ const Checkout = () => {
       return totalItems += item.qty;
     });
 
-    // Calculate VAT
+
     const vatAmount = Math.round(discountedSubtotal * vatRate);
     const finalTotal = discountedSubtotal + shipping + vatAmount;
 
