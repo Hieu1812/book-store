@@ -11,8 +11,6 @@ const OrderSuccess = () => {
     const storedUser = JSON.parse(sessionStorage.getItem("user")).data;
     const orderInfo = JSON.parse(sessionStorage.getItem("order")) || { data: { id_order: null, total_price: 0 } };
     const dispatch = useDispatch();
-    const [order, setOrder] = useState([]);
-    const [orderDetails, setOrderDetails] = useState([]);
     useEffect(() => {
         localStorage.setItem("cart", JSON.stringify([])); 
         dispatch(clearCart()); 
