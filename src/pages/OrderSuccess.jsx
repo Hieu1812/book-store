@@ -21,7 +21,7 @@ useEffect(() => {
     const fetchOrderDetails = async () => {
         try {
             const response = await getOrderByID(orderInfo.id_order);
-            console.log("API Response:", response.data);
+
             
             const processedOrderDetails = Array.isArray(response.data.order_details) 
                 ? response.data.order_details.map(detail => ({
