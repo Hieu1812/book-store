@@ -25,11 +25,9 @@ useEffect(() => {
             const response = await getOrderByID(orderInfo.id_order);
             console.log("API Response:", response.data);
             
-            // Process order details with image data
             const processedOrderDetails = Array.isArray(response.data.order_details) 
                 ? response.data.order_details.map(detail => ({
                     ...detail,
-                    // Keep the raw image data, it will be formatted in the email template
                 }))
                 : [];
 
