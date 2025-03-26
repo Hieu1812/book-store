@@ -97,7 +97,7 @@ const Checkout = () => {
         const checkOrderStatus = () => {
           postOrderStatus(app_trans_id).then((response) => {
             const { return_code } = response.data;
-            log.info('Checking order status:', response.data);
+            console.log('Checking order status:', response.data);
 
             switch (return_code) {
               case 1: // Thành công
@@ -111,7 +111,7 @@ const Checkout = () => {
                   navigate('/OrderSuccess', { state: { order: order } });
                 })
                   .catch((error) => {
-                    log.error('Failed to add order details:', error);
+                    console.log('Failed to add order details:', error);
                   });
                 clearInterval(orderCheckInterval);
                 break;
