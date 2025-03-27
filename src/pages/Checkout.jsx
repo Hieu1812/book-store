@@ -115,7 +115,7 @@ const Checkout = () => {
                       newWindow.close();
                     }
                     navigate('/OrderSuccess', { state: { order: order } });
-                    break;
+                    return; // Add return to stop function execution
 
                   case 2: // Failed
                     clearInterval(orderCheckInterval);
@@ -123,7 +123,7 @@ const Checkout = () => {
                       newWindow.close();
                     }
                     navigate('/OrderFail');
-                    break;
+                    return; // Add return to stop function execution
 
                   case 3: // Processing
                     if (newWindow.closed) {
@@ -131,6 +131,7 @@ const Checkout = () => {
                       const finalCheck = await postOrderStatus(response.data.app_trans_id);
                       if (finalCheck.data.return_code === 3) {
                         navigate('/OrderFail');
+                        return; // Add return to stop function execution
                       }
                     }
                     break;
@@ -139,6 +140,7 @@ const Checkout = () => {
                 console.error('Error checking order status:', error);
                 clearInterval(orderCheckInterval);
                 navigate('/OrderFail');
+                return; // Add return to stop function execution
               }
             }, 1000);
 
@@ -150,8 +152,6 @@ const Checkout = () => {
               }
               navigate('/OrderFail');
             }, 300000);
-          } else {
-            navigate('/OrderFail');
           }
         } catch (error) {
           console.error('Payment error:', error);
