@@ -3,6 +3,7 @@ import { Footer, Navbar } from "../components";
 import { useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { getAddress, addOrderAndOrderDetail, postPayment, postOrderStatus } from "../services/apiService";
+import { use } from "react";
 
 const Checkout = () => {
   const state = useSelector((state) => state.handleCart);
@@ -94,62 +95,65 @@ const Checkout = () => {
           }
         });
 
-        const checkOrderStatus = () => {
-          postOrderStatus(app_trans_id).then((response) => {
-            const { return_code } = response.data;
-            console.log('Checking order status:', response.data);
-
-            switch (return_code) {
-              case 1: // Thành công
-                addOrderAndOrderDetail(order).then((orderResponse) => {
-                  sessionStorage.setItem('order', JSON.stringify(orderResponse.data));
+        useEffect(() => {
+          const checkOrderStatus = () => {
+            postOrderStatus(app_trans_id).then((response) => {
+              const { return_code } = response.data;
+              console.log('Checking order status:', response.data);
+  
+              switch (return_code) {
+                case 1: // Thành công
+                  addOrderAndOrderDetail(order).then((orderResponse) => {
+                    sessionStorage.setItem('order', JSON.stringify(orderResponse.data));
+                    // setTimeout(() => {
+                    //   if (typeof paymentWindow !== 'undefined' && !paymentWindow.closed) {
+                    //     paymentWindow.close();
+                    //   }
+                    // }, 4100);
+                    navigate('/OrderSuccess', { state: { order: order } });
+                  })
+                    .catch((error) => {
+                      console.log('Failed to add order details:', error);
+                    });
+                  clearInterval(orderCheckInterval);
+                  break;
+  
+                case 2: // Thất bại
+                  clearInterval(orderCheckInterval);
                   // setTimeout(() => {
                   //   if (typeof paymentWindow !== 'undefined' && !paymentWindow.closed) {
                   //     paymentWindow.close();
                   //   }
                   // }, 4100);
-                  navigate('/OrderSuccess', { state: { order: order } });
-                })
-                  .catch((error) => {
-                    console.log('Failed to add order details:', error);
-                  });
-                clearInterval(orderCheckInterval);
-                break;
-
-              case 2: // Thất bại
-                clearInterval(orderCheckInterval);
-                // setTimeout(() => {
-                //   if (typeof paymentWindow !== 'undefined' && !paymentWindow.closed) {
-                //     paymentWindow.close();
-                //   }
-                // }, 4100);
-                navigate('/OrderFail');
-                break;
-
-              case 3: // Đang chờ xử lý
-                // Kiểm tra xem giao dịch đã được xử lý hay chưa
-                // if (typeof polling === 'undefined') {
-                //   const polling = setInterval(() => {
-                //     if (typeof paymentWindow !== 'undefined' && paymentWindow.closed) {
-                //       // Kiểm tra lại trạng thái giao dịch trước khi navigate đến OrderFail
-                //       postOrderStatus(app_trans_id).then((latestResponse) => {
-                //         const { return_code: latestReturnCode } = latestResponse.data;
-                //         if (latestReturnCode === 3) {
-                //           navigate('/OrderFail');
-                //         }
-                //       });
-                //       clearInterval(orderCheckInterval);
-                //       clearInterval(polling);
-                //     }
-                //   }, 200);
-                // }
-                break;
-            }
-          })
-            .catch((error) => {
-              console.error('Error checking order status:', error);
-            });
-        };
+                  navigate('/OrderFail');
+                  break;
+  
+                case 3: // Đang chờ xử lý
+                  // Kiểm tra xem giao dịch đã được xử lý hay chưa
+                  // if (typeof polling === 'undefined') {
+                  //   const polling = setInterval(() => {
+                  //     if (typeof paymentWindow !== 'undefined' && paymentWindow.closed) {
+                  //       // Kiểm tra lại trạng thái giao dịch trước khi navigate đến OrderFail
+                  //       postOrderStatus(app_trans_id).then((latestResponse) => {
+                  //         const { return_code: latestReturnCode } = latestResponse.data;
+                  //         if (latestReturnCode === 3) {
+                  //           navigate('/OrderFail');
+                  //         }
+                  //       });
+                  //       clearInterval(orderCheckInterval);
+                  //       clearInterval(polling);
+                  //     }
+                  //   }, 200);
+                  // }
+                  break;
+              }
+            })
+              .catch((error) => {
+                console.error('Error checking order status:', error);
+              });
+          };
+          checkOrderStatus();
+        }, []);
 
         const orderCheckInterval = setInterval(checkOrderStatus, 1001);
       }
