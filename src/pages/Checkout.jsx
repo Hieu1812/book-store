@@ -1,9 +1,8 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { Footer, Navbar } from "../components";
 import { useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { getAddress, addOrderAndOrderDetail, postPayment, postOrderStatus } from "../services/apiService";
-import { use } from "react";
 
 const Checkout = () => {
   const state = useSelector((state) => state.handleCart);
@@ -11,6 +10,8 @@ const Checkout = () => {
   const [address, setAddress] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState(null);
   const [selectedPayment, setSelectedPayment] = useState('cod');
+  const [paymentWindow, setPaymentWindow] = useState(null);
+  const [appTransId, setAppTransId] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -21,6 +22,15 @@ const Checkout = () => {
     };
     fetchAddress();
   }, [storedUser.id_account]);
+
+  // Cleanup function
+  useEffect(() => {
+    return () => {
+      if (paymentWindow) {
+        paymentWindow.close();
+      }
+    };
+  }, [paymentWindow]);
 
   const EmptyCart = () => (
     <div className="container text-center py-5">
@@ -82,83 +92,73 @@ const Checkout = () => {
         const user_name = storedUser.full_name;
         const total_price = finalTotal;
         const items = order.order_details;
-        let app_trans_id = null;
-        let paymentWindow = null;
 
-        postPayment(user_name, total_price, items).then((response) => {
+        try {
+          const response = await postPayment(user_name, total_price, items);
           if (response.status === 200 && response.data.data.return_code === 1) {
-            // window.location.href = response.data.data.order_url;
-            paymentWindow = window.open(response.data.data.order_url, '_blank');
-            app_trans_id = response.data.app_trans_id;
+            const newWindow = window.open(response.data.data.order_url, '_blank');
+            setPaymentWindow(newWindow);
+            setAppTransId(response.data.app_trans_id);
+
+            const orderCheckInterval = setInterval(async () => {
+              try {
+                const statusResponse = await postOrderStatus(response.data.app_trans_id);
+                const { return_code } = statusResponse.data;
+                console.log('Checking order status:', statusResponse.data);
+
+                switch (return_code) {
+                  case 1: // Success
+                    clearInterval(orderCheckInterval);
+                    const orderResponse = await addOrderAndOrderDetail(order);
+                    sessionStorage.setItem('order', JSON.stringify(orderResponse.data));
+                    if (newWindow && !newWindow.closed) {
+                      newWindow.close();
+                    }
+                    navigate('/OrderSuccess', { state: { order: order } });
+                    break;
+
+                  case 2: // Failed
+                    clearInterval(orderCheckInterval);
+                    if (newWindow && !newWindow.closed) {
+                      newWindow.close();
+                    }
+                    navigate('/OrderFail');
+                    break;
+
+                  case 3: // Processing
+                    if (newWindow.closed) {
+                      clearInterval(orderCheckInterval);
+                      const finalCheck = await postOrderStatus(response.data.app_trans_id);
+                      if (finalCheck.data.return_code === 3) {
+                        navigate('/OrderFail');
+                      }
+                    }
+                    break;
+                }
+              } catch (error) {
+                console.error('Error checking order status:', error);
+                clearInterval(orderCheckInterval);
+                navigate('/OrderFail');
+              }
+            }, 1000);
+
+            // Set timeout for payment window (5 minutes)
+            setTimeout(() => {
+              clearInterval(orderCheckInterval);
+              if (newWindow && !newWindow.closed) {
+                newWindow.close();
+              }
+              navigate('/OrderFail');
+            }, 300000);
           } else {
             navigate('/OrderFail');
           }
-        });
-
-        useEffect(() => {
-          const checkOrderStatus = () => {
-            postOrderStatus(app_trans_id).then((response) => {
-              const { return_code } = response.data;
-              console.log('Checking order status:', response.data);
-  
-              switch (return_code) {
-                case 1: // Thành công
-                  addOrderAndOrderDetail(order).then((orderResponse) => {
-                    sessionStorage.setItem('order', JSON.stringify(orderResponse.data));
-                    // setTimeout(() => {
-                    //   if (typeof paymentWindow !== 'undefined' && !paymentWindow.closed) {
-                    //     paymentWindow.close();
-                    //   }
-                    // }, 4100);
-                    navigate('/OrderSuccess', { state: { order: order } });
-                  })
-                    .catch((error) => {
-                      console.log('Failed to add order details:', error);
-                    });
-                  clearInterval(orderCheckInterval);
-                  break;
-  
-                case 2: // Thất bại
-                  clearInterval(orderCheckInterval);
-                  // setTimeout(() => {
-                  //   if (typeof paymentWindow !== 'undefined' && !paymentWindow.closed) {
-                  //     paymentWindow.close();
-                  //   }
-                  // }, 4100);
-                  navigate('/OrderFail');
-                  break;
-  
-                case 3: // Đang chờ xử lý
-                  // Kiểm tra xem giao dịch đã được xử lý hay chưa
-                  // if (typeof polling === 'undefined') {
-                  //   const polling = setInterval(() => {
-                  //     if (typeof paymentWindow !== 'undefined' && paymentWindow.closed) {
-                  //       // Kiểm tra lại trạng thái giao dịch trước khi navigate đến OrderFail
-                  //       postOrderStatus(app_trans_id).then((latestResponse) => {
-                  //         const { return_code: latestReturnCode } = latestResponse.data;
-                  //         if (latestReturnCode === 3) {
-                  //           navigate('/OrderFail');
-                  //         }
-                  //       });
-                  //       clearInterval(orderCheckInterval);
-                  //       clearInterval(polling);
-                  //     }
-                  //   }, 200);
-                  // }
-                  break;
-              }
-            })
-              .catch((error) => {
-                console.error('Error checking order status:', error);
-              });
-          };
-          checkOrderStatus();
-        }, []);
-
-        const orderCheckInterval = setInterval(checkOrderStatus, 1001);
+        } catch (error) {
+          console.error('Payment error:', error);
+          navigate('/OrderFail');
+        }
       }
     };
-
 
     return (
       <div className="container py-5">
