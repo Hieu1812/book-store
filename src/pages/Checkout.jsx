@@ -128,21 +128,21 @@ const Checkout = () => {
 
               case 3: // Đang chờ xử lý
                 // Kiểm tra xem giao dịch đã được xử lý hay chưa
-                if (typeof polling === 'undefined') {
-                  const polling = setInterval(() => {
-                    if (typeof paymentWindow !== 'undefined' && paymentWindow.closed) {
-                      // Kiểm tra lại trạng thái giao dịch trước khi navigate đến OrderFail
-                      postOrderStatus(app_trans_id).then((latestResponse) => {
-                        const { return_code: latestReturnCode } = latestResponse.data;
-                        if (latestReturnCode === 3) {
-                          navigate('/OrderFail');
-                        }
-                      });
-                      clearInterval(orderCheckInterval);
-                      clearInterval(polling);
-                    }
-                  }, 200);
-                }
+                // if (typeof polling === 'undefined') {
+                //   const polling = setInterval(() => {
+                //     if (typeof paymentWindow !== 'undefined' && paymentWindow.closed) {
+                //       // Kiểm tra lại trạng thái giao dịch trước khi navigate đến OrderFail
+                //       postOrderStatus(app_trans_id).then((latestResponse) => {
+                //         const { return_code: latestReturnCode } = latestResponse.data;
+                //         if (latestReturnCode === 3) {
+                //           navigate('/OrderFail');
+                //         }
+                //       });
+                //       clearInterval(orderCheckInterval);
+                //       clearInterval(polling);
+                //     }
+                //   }, 200);
+                // }
                 break;
             }
           })
