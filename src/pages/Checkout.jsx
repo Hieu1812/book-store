@@ -103,11 +103,11 @@ const Checkout = () => {
               case 1: // Thành công
                 addOrderAndOrderDetail(order).then((orderResponse) => {
                   sessionStorage.setItem('order', JSON.stringify(orderResponse.data));
-                  setTimeout(() => {
-                    if (typeof paymentWindow !== 'undefined' && !paymentWindow.closed) {
-                      paymentWindow.close();
-                    }
-                  }, 4100);
+                  // setTimeout(() => {
+                  //   if (typeof paymentWindow !== 'undefined' && !paymentWindow.closed) {
+                  //     paymentWindow.close();
+                  //   }
+                  // }, 4100);
                   navigate('/OrderSuccess', { state: { order: order } });
                 })
                   .catch((error) => {
@@ -118,11 +118,11 @@ const Checkout = () => {
 
               case 2: // Thất bại
                 clearInterval(orderCheckInterval);
-                setTimeout(() => {
-                  if (typeof paymentWindow !== 'undefined' && !paymentWindow.closed) {
-                    paymentWindow.close();
-                  }
-                }, 4100);
+                // setTimeout(() => {
+                //   if (typeof paymentWindow !== 'undefined' && !paymentWindow.closed) {
+                //     paymentWindow.close();
+                //   }
+                // }, 4100);
                 navigate('/OrderFail');
                 break;
 
