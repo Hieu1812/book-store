@@ -18,8 +18,9 @@ const moment = require('moment');
 
 const Sidebar = () => {
   return (
+    <>
     <div
-      className="d-flex flex-column p-3 bg-white shadow rounded"
+      className="d-flex flex-column p-3 bg-white shadow rounded d-md-block d-none"
       style={{
         width: "250px",
         height: "calc(100vh - 100px)",
@@ -27,32 +28,56 @@ const Sidebar = () => {
         top: "100px"
       }}
     >
-      <ul className="nav flex-column">
-        <li className="nav-item mb-2">
-          <Link to="/managemyaccount" className="nav-link text-dark hover-bg-light rounded p-2">
+      <ul className="nav flex-column mt-3">
+        <li className="nav-item">
+          <Link to="/managemyaccount" className="nav-link text-dark">
             <FaUsers className="me-2" /> Manage my account
           </Link>
         </li>
-        <li className="nav-item mb-2">
-          <Link
-            to="/myprofile"
-            className="nav-link text-white fw-bold bg-primary p-2 rounded"
-          >
+        <li className="nav-item">
+          <Link to="/myprofile" className="nav-link text-white fw-bold bg-primary p-2 rounded">
             <FaUser className="me-2" /> My Profile
           </Link>
         </li>
-        <li className="nav-item mb-2">
-          <Link to="/addressbook" className="nav-link text-dark hover-bg-light rounded p-2">
+        <li className="nav-item">
+          <Link to="/addressbook" className="nav-link text-dark">
             <FaAddressCard className="me-2" /> Address Book
           </Link>
         </li>
-        <li className="nav-item mb-2">
-          <Link to="/myorder" className="nav-link text-dark hover-bg-light rounded p-2">
-            <FaCartPlus className="me-2" /> My Orders
+        <li className="nav-item">
+          <Link to="/myorder" className="nav-link text-dark">
+            <FaCartPlus className="me-2" /> My order
           </Link>
         </li>
       </ul>
     </div>
+
+    {/* Menu ngang cho mobile */}
+    <div className="d-md-none fixed-bottom bg-white shadow p-2">
+      <ul className="nav justify-content-around">
+        <li className="nav-item">
+          <Link to="/managemyaccount" className="nav-link text-dark">
+            <FaUsers />
+          </Link>
+        </li>
+        <li className="nav-item">
+          <Link to="/myprofile" className="nav-link text-white fw-bold bg-primary p-2 rounded">
+            <FaUser />
+          </Link>
+        </li>
+        <li className="nav-item">
+          <Link to="/addressbook" className="nav-link text-dark">
+            <FaAddressCard />
+          </Link>
+        </li>
+        <li className="nav-item">
+          <Link to="/myorder" className="nav-link text-dark">
+            <FaCartPlus />
+          </Link>
+        </li>
+      </ul>
+    </div>
+    </>
   );
 };
 
@@ -245,17 +270,37 @@ const MyProfile = () => {
     }
   };
   
- 
-
   return (
     <>
+      <style>{`
+      /* Sidebar responsive */
+      @media (max-width: 768px) {
+        .Sidebar {
+          width: 100%;
+          height: auto;
+          position: relative;
+          top: 0;
+          margin-bottom: 20px;
+        }
+
+        .nav-link {
+          padding: 10px 0;
+        }
+
+        .col-md-3, .col-md-9 {
+          flex: 0 0 100%;
+          max-width: 100%;
+        }
+      }
+
+      `}</style>
       <Navbar user={storedUser} />
       <div className="container py-4">
         <div className="row">
           <div className="col-md-3">
             <Sidebar />
           </div>
-          <div className="col-md-9">
+          <div className="col-md-9" >
             <div className="card border-0 shadow-sm rounded-3 mb-4">
               <div className="card-body p-0">
                 <div className="bg-primary text-white p-4 rounded-top">
