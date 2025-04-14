@@ -113,7 +113,7 @@ const Chat = () => {
     // 👉 Truy vấn thông tin sách từ backend (PostgreSQL)
     let dbInfo = "";
     try {
-      const res = await fetch(`http://localhost:3005/api/book-info?message=${encodeURIComponent(messageText)}`);
+      const res = await fetch(`https://bookstorenhom11.azurewebsites.net/api/book-info?message=${encodeURIComponent(messageText)}`);
       const data = await res.json();
       if (data.success) {
         dbInfo = data.dbInfo;
@@ -157,7 +157,7 @@ const Chat = () => {
     }
 
     try {
-      const response = await axios.post("http://localhost:3005/api/gemini", {
+      const response = await axios.post("https://bookstorenhom11.azurewebsites.net/api/gemini", {
         prompt: prompt,
       });
 
@@ -200,7 +200,7 @@ const Chat = () => {
 
     // 🔍 Gọi backend để lấy dữ liệu liên quan từ PostgreSQL
     try {
-      const res = await fetch(`http://localhost:3005/api/book-info?message=${encodeURIComponent(messageText)}`);
+      const res = await fetch(`https://bookstorenhom11.azurewebsites.net/api/book-info?message=${encodeURIComponent(messageText)}`);
       const data = await res.json();
       if (data.success) {
         dbInfo = data.dbInfo;
