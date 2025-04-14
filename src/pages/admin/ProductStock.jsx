@@ -1,15 +1,32 @@
-
-import { FaUsers, FaBox, FaList, FaChartBar, FaSignOutAlt, FaTrash, FaEdit, FaUber, FaHome } from "react-icons/fa";
-import { HeaderAdmin } from "../../components";
+import {
+  FaUsers,
+  FaBox,
+  FaList,
+  FaChartBar,
+  FaSignOutAlt,
+  FaTrash,
+  FaEdit,
+  FaUber,
+  FaHome,
+} from "react-icons/fa";
+import { HeaderAdmin, Loading } from "../../components";
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { getProducts, deleteProductbyID, postEditProduct, getProductbyID } from "../../services/apiService";
+import {
+  getProducts,
+  deleteProductbyID,
+  postEditProduct,
+  getProductbyID,
+} from "../../services/apiService";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 const Sidebar = () => {
   return (
-    <div className="d-flex flex-column p-3 bg-white shadow position-fixed" style={{ width: "250px", height: "100vh", top: "0", left: "0" }}>
+    <div
+      className="d-flex flex-column p-3 bg-white shadow position-fixed"
+      style={{ width: "250px", height: "100vh", top: "0", left: "0" }}
+    >
       <h4 className="text-primary text-center">Seller Page</h4>
       <ul className="nav flex-column mt-3">
         <li className="nav-item">
@@ -28,7 +45,10 @@ const Sidebar = () => {
           </Link>
         </li>
         <li className="nav-item">
-          <Link to="" className="nav-link text-white fw-bold bg-primary p-2 rounded">
+          <Link
+            to=""
+            className="nav-link text-white fw-bold bg-primary p-2 rounded"
+          >
             <FaChartBar className="me-2" /> Product Stock
           </Link>
         </li>
@@ -43,7 +63,8 @@ const Sidebar = () => {
         <FaHome className="me-2" /> Back to Home
       </Link>
       <Link to="/login" className="nav-link text-danger">
-        <FaSignOutAlt className="me-2" />Login
+        <FaSignOutAlt className="me-2" />
+        Logout
       </Link>
     </div>
   );
@@ -55,6 +76,7 @@ const ProductStock = () => {
   const [newStock, setNewStock] = useState(0);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true); // Sửa: Khởi tạo true để loading ngay
 
   useEffect(() => {
     fetchProducts();
@@ -62,83 +84,93 @@ const ProductStock = () => {
 
   const fetchProducts = async () => {
     try {
-        const response = await getProducts();
-        const productsWithGenre = await Promise.all(response.data.map(async (product) => {
-            const genreResponse = await getProductbyID(product.id_book);
-            return { ...product, genre: genreResponse.data[0]?.genre || "Unknown" };
-        }));
-        setProducts(productsWithGenre);
+      setIsLoading(true); // Bật loading khi bắt đầu fetch
+      const response = await getProducts();
+      const productsWithGenre = await Promise.all(
+        response.data.map(async (product) => {
+          const genreResponse = await getProductbyID(product.id_book);
+          return {
+            ...product,
+            genre: genreResponse.data[0]?.genre || "Unknown",
+          };
+        })
+      );
+      setProducts(productsWithGenre);
     } catch (error) {
-        console.error("Error fetching products:", error);
-        toast.error("Failed to load products!");
+      console.error("Error fetching products:", error);
+      toast.error("Failed to load products!");
+    } finally {
+      setIsLoading(false); // Tắt loading sau khi fetch xong
     }
-};
-
-  
+  };
 
   const handleEdit = (product) => {
     setSelectedProduct(product);
     setNewStock(product.stock);
     setShowEditModal(true);
   };
-  
+
   const confirmEdit = async () => {
     if (newStock === "" || isNaN(newStock) || Number(newStock) < 0) {
-        toast.error("Stock value must be a valid non-negative number!");
-        return;
+      toast.error("Stock value must be a valid non-negative number!");
+      return;
     }
 
     try {
-        const formData = new FormData();
-        formData.append("id_book", selectedProduct.id_book);
-        formData.append("stock", newStock);
-        
-        const response = await postEditProduct(formData);
+      const formData = new FormData();
+      formData.append("id_book", selectedProduct.id_book);
+      formData.append("stock", newStock);
 
-        console.log("API Response:", response);
+      const response = await postEditProduct(formData);
 
-        if (response.status === 200 && response.data.message === "Book edited successfully") {
-            toast.success("Stock updated successfully!");
-            setProducts(prevProducts =>
-                prevProducts.map(p =>
-                    p.id_book === selectedProduct.id_book ? { ...p, stock: Number(newStock) } : p
-                )
-            );
-        } else {
-            toast.error("Failed to update stock! Please try again.");
-        }
+      console.log("API Response:", response);
+
+      if (
+        response.status === 200 &&
+        response.data.message === "Book edited successfully"
+      ) {
+        toast.success("Stock updated successfully!");
+        setProducts((prevProducts) =>
+          prevProducts.map((p) =>
+            p.id_book === selectedProduct.id_book
+              ? { ...p, stock: Number(newStock) }
+              : p
+          )
+        );
+      } else {
+        toast.error("Failed to update stock! Please try again.");
+      }
     } catch (error) {
-        console.error("Error updating stock:", error);
-        toast.error("Failed to update stock!");
+      console.error("Error updating stock:", error);
+      toast.error("Failed to update stock!");
     }
 
     setShowEditModal(false);
-};
+  };
 
+  const handleDelete = (product) => {
+    setSelectedProduct(product);
+    setShowDeleteModal(true);
+  };
 
+  const confirmDelete = async () => {
+    try {
+      const response = await deleteProductbyID(selectedProduct.id_book);
 
-
-const handleDelete = (product) => {
-  setSelectedProduct(product);
-  setShowDeleteModal(true);
-};
-
-const confirmDelete = async () => {
-  try {
-    const response = await deleteProductbyID(selectedProduct.id_book);
-    
-    if (response.status === 200) {
-      setProducts(products.filter(p => p.id_book !== selectedProduct.id_book));
-      toast.success("Product deleted successfully!");
-    } else {
-      toast.error("Failed to delete product! Please try again.");
+      if (response.status === 200) {
+        setProducts(
+          products.filter((p) => p.id_book !== selectedProduct.id_book)
+        );
+        toast.success("Product deleted successfully!");
+      } else {
+        toast.error("Failed to delete product! Please try again.");
+      }
+    } catch (error) {
+      console.error("Error deleting product:", error);
+      toast.error("Failed to delete product!");
     }
-  } catch (error) {
-    console.error("Error deleting product:", error);
-    toast.error("Failed to delete product!");
-  }
-  setShowDeleteModal(false);
-};
+    setShowDeleteModal(false);
+  };
 
   return (
     <div className="d-flex">
@@ -160,65 +192,116 @@ const confirmDelete = async () => {
               </tr>
             </thead>
             <tbody>
-              {products.map(product => (
-                <tr key={product.id_book}>
-                  <td><img src={`data:image/jpeg;base64,${product.image_data}`} alt={product.book_name} style={{ height: "58px", objectFit: "contain", maxWidth: "200px" }} /></td>
-                  <td>{product.book_name}</td>
-                  <td>{product.genre}</td>
-                  <td>${product.price}</td>
-                  <td>{product.stock}</td>
-                  <td>{product.discount}%</td>
-                  <td>
-                    <button className="btn btn-outline-danger me-2" onClick={() => handleDelete(product)}><FaTrash /></button>
-                    <button className="btn btn-outline-primary" onClick={() => handleEdit(product)}><FaEdit /></button>
+              {isLoading ? (
+                <tr style={{ position: "relative" }}>
+                  <td colSpan="8" className="text-center py-4 text-muted">
+                    <Loading isLoading={isLoading} />
                   </td>
                 </tr>
-              ))}
+              ) : (
+                products
+                  .filter((product) => product.is_active) // Filter active products
+                  .map((product) => (
+                    <tr key={product.id_book}>
+                      <td>
+                        <img
+                          src={`data:image/jpeg;base64,${product.image_data}`}
+                          alt={product.book_name}
+                          style={{
+                            height: "58px",
+                            objectFit: "contain",
+                            maxWidth: "200px",
+                          }}
+                        />
+                      </td>
+                      <td>{product.book_name}</td>
+                      <td>{product.genre}</td>
+                      <td>
+                        {product.price.toLocaleString("vi-VN")}
+                        <sup>₫</sup>
+                      </td>
+                      <td>{product.stock}</td>
+                      <td>{product.discount}%</td>
+                      <td>
+                        <button
+                          className="btn btn-outline-danger me-2"
+                          onClick={() => handleDelete(product)}
+                        >
+                          <FaTrash />
+                        </button>
+                        <button
+                          className="btn btn-outline-primary"
+                          onClick={() => handleEdit(product)}
+                        >
+                          <FaEdit />
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+              )}
             </tbody>
           </table>
         </div>
       </div>
       {showDeleteModal && (
-  <div className="modal d-block bg-dark bg-opacity-50">
-    <div className="modal-dialog modal-dialog-centered">
-      <div className="modal-content p-3">
-        <h4 className="fw-bold text-danger">Confirm Delete</h4>
-        <p>Are you sure you want to delete this product: <strong>{selectedProduct?.book_name}</strong>?</p>
-        <div className="d-flex justify-content-end mt-3">
-          <button className="btn btn-secondary me-2" onClick={() => setShowDeleteModal(false)}>Cancel</button>
-          <button className="btn btn-danger" onClick={confirmDelete}>Delete</button>
+        <div className="modal d-block bg-dark bg-opacity-50">
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content p-3">
+              <h4 className="fw-bold text-danger">Confirm Delete</h4>
+              <p>
+                Are you sure you want to delete this product:{" "}
+                <strong>{selectedProduct?.book_name}</strong>?
+              </p>
+              <div className="d-flex justify-content-end mt-3">
+                <button
+                  className="btn btn-secondary me-2"
+                  onClick={() => setShowDeleteModal(false)}
+                >
+                  Cancel
+                </button>
+                <button className="btn btn-danger" onClick={confirmDelete}>
+                  Delete
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </div>
-)}
-     {showEditModal && (
-  <div className="modal d-block bg-dark bg-opacity-50">
-    <div className="modal-dialog modal-dialog-centered">
-      <div className="modal-content p-3">
-        <h4 className="fw-bold text-primary">Edit Stock</h4>
-        <p><strong>Product:</strong> {selectedProduct?.book_name}</p>
-        <label className="form-label fw-bold">New Stock Value:</label>
-        <input 
-          type="number" 
-          className="form-control"
-          min="0"
-          value={newStock} 
-          onChange={(e) => setNewStock(e.target.value)} 
-        />
-        <div className="d-flex justify-content-end mt-3">
-          <button className="btn btn-secondary me-2" onClick={() => setShowEditModal(false)}>Cancel</button>
-          <button className="btn btn-primary" onClick={confirmEdit}>Update</button>
+      )}
+      {showEditModal && (
+        <div className="modal d-block bg-dark bg-opacity-50">
+          <div className="modal-dialog modal-dialog-centered">
+            <div className="modal-content p-3">
+              <h4 className="fw-bold text-primary">Edit Stock</h4>
+              <p>
+                <strong>Product:</strong> {selectedProduct?.book_name}
+              </p>
+              <label className="form-label fw-bold">New Stock Value:</label>
+              <input
+                type="number"
+                className="form-control"
+                min="0"
+                value={newStock}
+                onChange={(e) => setNewStock(e.target.value)}
+              />
+              <div className="d-flex justify-content-end mt-3">
+                <button
+                  className="btn btn-secondary me-2"
+                  onClick={() => setShowEditModal(false)}
+                >
+                  Cancel
+                </button>
+                <button className="btn btn-primary" onClick={confirmEdit}>
+                  Update
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
       <ToastContainer />
     </div>
   );
 };
-
 
 export default ProductStock;

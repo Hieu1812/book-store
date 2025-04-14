@@ -1,5 +1,5 @@
-import React, { useEffect, useState, useCallback } from "react";
-import { Footer, Navbar } from "../components";
+import React, { useEffect, useState } from "react";
+import { Footer, Navbar, Loading } from "../components";
 import { useSelector } from "react-redux";
 import { Link, useNavigate } from "react-router-dom";
 import { getAddress, addOrderAndOrderDetail, postPayment, postOrderStatus } from "../services/apiService";
@@ -12,25 +12,17 @@ const Checkout = () => {
   const [selectedPayment, setSelectedPayment] = useState('cod');
   const [paymentWindow, setPaymentWindow] = useState(null);
   const [appTransId, setAppTransId] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     const fetchAddress = async () => {
       const response = await getAddress(storedUser.id_account);
-      setAddress(response.data);
+      setAddress(response.data.filter(product => product.is_active));
       setSelectedAddress(response.data[0]);
     };
     fetchAddress();
   }, [storedUser.id_account]);
-
-  // Cleanup function
-  useEffect(() => {
-    return () => {
-      if (paymentWindow) {
-        paymentWindow.close();
-      }
-    };
-  }, [paymentWindow]);
 
   const EmptyCart = () => (
     <div className="container text-center py-5">
@@ -47,7 +39,7 @@ const Checkout = () => {
     let totalSavings = 0;
     let shipping = 0;
     let totalItems = 0;
-    const vatRate = 0.10; // 10% VAT
+
 
     state.map((item) => {
       const originalItemTotal = parseInt(item.price * item.qty);
@@ -59,9 +51,7 @@ const Checkout = () => {
       return totalItems += item.qty;
     });
 
-    // Calculate VAT
-    const vatAmount = Math.round(discountedSubtotal * vatRate);
-    const finalTotal = discountedSubtotal + shipping + vatAmount;
+    const finalTotal = discountedSubtotal + shipping;
 
     const handleSubmit = async (event) => {
       event.preventDefault();
@@ -80,6 +70,7 @@ const Checkout = () => {
       };
 
       if (selectedPayment === 'cod') {
+        setIsLoading(true);
         addOrderAndOrderDetail(order).then((response) => {
           if (response.status === 200) {
             sessionStorage.setItem('order', JSON.stringify(response.data));
@@ -87,15 +78,18 @@ const Checkout = () => {
           } else {
             navigate('/OrderFail');
           }
+          setIsLoading(false);
         });
       } else if (selectedPayment === 'zalopay') {
         const user_name = storedUser.full_name;
         const total_price = finalTotal;
         const items = order.order_details;
+        setIsLoading(true);
 
         try {
           const response = await postPayment(user_name, total_price, items);
           if (response.status === 200 && response.data.data.return_code === 1) {
+            // setIsLoading(true);
             const newWindow = window.open(response.data.data.order_url, '_blank');
             setPaymentWindow(newWindow);
             setAppTransId(response.data.app_trans_id);
@@ -109,20 +103,29 @@ const Checkout = () => {
                 switch (return_code) {
                   case 1: // Success
                     clearInterval(orderCheckInterval);
-                    const orderResponse = await addOrderAndOrderDetail(order);
-                    sessionStorage.setItem('order', JSON.stringify(orderResponse.data));
+                    await new Promise(resolve => setTimeout(resolve, 999));
+                    order.payment_status = 'paid';
+                    order.order_status = 'pending';
+                    const orderR1 = await addOrderAndOrderDetail(order);
+                    sessionStorage.setItem('order', JSON.stringify(orderR1.data));
+                    setIsLoading(false);
+                    navigate('/OrderSuccess', { state: { order: order } });
                     if (newWindow && !newWindow.closed) {
                       newWindow.close();
                     }
-                    navigate('/OrderSuccess', { state: { order: order } });
                     return; // Add return to stop function execution
-
                   case 2: // Failed
                     clearInterval(orderCheckInterval);
+                    await new Promise(resolve => setTimeout(resolve, 999));
+                    order.payment_status = 'failed';
+                    order.order_status = 'cancelled';
+                    const orderR2 = await addOrderAndOrderDetail(order);
+                    sessionStorage.setItem('order', JSON.stringify(orderR2.data));
+                    setIsLoading(false);
+                    navigate('/OrderFail');
                     if (newWindow && !newWindow.closed) {
                       newWindow.close();
                     }
-                    navigate('/OrderFail');
                     return; // Add return to stop function execution
 
                   case 3: // Processing
@@ -130,6 +133,11 @@ const Checkout = () => {
                       clearInterval(orderCheckInterval);
                       const finalCheck = await postOrderStatus(response.data.app_trans_id);
                       if (finalCheck.data.return_code === 3) {
+                        order.payment_status = 'failed';
+                        order.order_status = 'cancelled';
+                        const orderR3 = await addOrderAndOrderDetail(order);
+                        sessionStorage.setItem('order', JSON.stringify(orderR3.data));
+                        setIsLoading(false);
                         navigate('/OrderFail');
                         return; // Add return to stop function execution
                       }
@@ -139,26 +147,20 @@ const Checkout = () => {
               } catch (error) {
                 console.error('Error checking order status:', error);
                 clearInterval(orderCheckInterval);
+                setIsLoading(false);
                 navigate('/OrderFail');
                 return; // Add return to stop function execution
               }
-            }, 1000);
-
-            // Set timeout for payment window (5 minutes)
-            setTimeout(() => {
-              clearInterval(orderCheckInterval);
-              if (newWindow && !newWindow.closed) {
-                newWindow.close();
-              }
-              navigate('/OrderFail');
-            }, 300000);
+            }, 321);
           }
         } catch (error) {
           console.error('Payment error:', error);
+          setIsLoading(false);
           navigate('/OrderFail');
         }
       }
     };
+
 
     return (
       <div className="container py-5">
@@ -277,10 +279,7 @@ const Checkout = () => {
                     <span>{shipping.toLocaleString("vi-VN")}<sup>₫</sup></span>
                   </li>
 
-                  <li className="list-group-item d-flex justify-content-between align-items-center px-0">
-                    VAT (10%)
-                    <span>{vatAmount.toLocaleString("vi-VN")}<sup>₫</sup></span>
-                  </li>
+
 
                   <li className="list-group-item d-flex justify-content-between align-items-center border-0 px-0 mb-3">
 
@@ -303,13 +302,16 @@ const Checkout = () => {
 
   return (
     <>
-      <Navbar user={storedUser} />
-      <div className="container my-3 py-3">
-        <h1 className="text-center">Checkout</h1>
-        <hr />
-        {state.length ? <ShowCheckout /> : <EmptyCart />}
+      <div style={{ position: "relative" }}>
+        <Navbar user={storedUser} />
+        <div className="container my-3 py-3">
+          <h1 className="text-center">Checkout</h1>
+          <hr />
+          {state.length ? <ShowCheckout /> : <EmptyCart />}
+        </div>
+        <Footer />
+        <Loading isLoading={isLoading} />
       </div>
-      <Footer />
     </>
   );
 };

@@ -1,12 +1,24 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import "react-loading-skeleton/dist/skeleton.css";
-import { FaUsers, FaBox, FaUber, FaList, FaChartBar, FaSignOutAlt, FaFilter, FaHome, FaEdit, FaSave, FaChevronDown, FaChevronUp } from "react-icons/fa";
-import { HeaderAdmin } from "../../components";
+import {
+  FaUsers,
+  FaBox,
+  FaUber,
+  FaList,
+  FaHome,
+  FaSignOutAlt,
+  FaChartBar,
+} from "react-icons/fa";
+import { HeaderAdmin, Loading } from "../../components";
+import { getAccounts, getOrders } from "../../services/apiService";
 
 const Sidebar = () => {
   return (
-    <div className="d-flex flex-column p-3 bg-white shadow position-fixed" style={{ width: "250px", height: "100vh", top: "0", left: "0" }}>
+    <div
+      className="d-flex flex-column p-3 bg-white shadow position-fixed"
+      style={{ width: "250px", height: "100vh", top: "0", left: "0" }}
+    >
       <h4 className="text-primary text-center">Seller Page</h4>
       <ul className="nav flex-column mt-3">
         <li className="nav-item">
@@ -30,7 +42,10 @@ const Sidebar = () => {
           </Link>
         </li>
         <li className="nav-item">
-          <Link to="/customer" className="nav-link text-white fw-bold bg-primary p-2 rounded">
+          <Link
+            to="/customer"
+            className="nav-link text-white fw-bold bg-primary p-2 rounded"
+          >
             <FaUber className="me-2" /> Customer
           </Link>
         </li>
@@ -40,219 +55,243 @@ const Sidebar = () => {
         <FaHome className="me-2" /> Back to Home
       </Link>
       <Link to="/login" className="nav-link text-danger">
-        <FaSignOutAlt className="me-2" />Login
+        <FaSignOutAlt className="me-2" />
+        Logout
       </Link>
     </div>
   );
 };
 
 const Customer = () => {
-  // State variables
   const [customers, setCustomers] = useState([]);
   const [filteredCustomers, setFilteredCustomers] = useState([]);
-  const [editingCustomerId, setEditingCustomerId] = useState(null);
-  const [editingValues, setEditingValues] = useState({ name: "", email: "", status: "" });
-  const [showFilterBox, setShowFilterBox] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState([]);
   const [searchKeyword, setSearchKeyword] = useState("");
+  const [orderDetails, setOrderDetails] = useState({});
+  const [expandedAccountId, setExpandedAccountId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true); // Sửa: Khởi tạo true để loading ngay
 
-  const customerStatuses = ["active", "inactive", "suspended"];
+  const calculateFinalPrice = (price, discount) =>
+    price - (price * discount) / 100;
 
-  // // Lấy dữ liệu khách hàng
-  // useEffect(() => {
-  //   const fetchCustomers = async () => {
-  //     try {
-  //       const res = await getCustomers(); // Giả lập API call
-  //       setCustomers(res.data || []);
-  //       setFilteredCustomers(res.data || []);
-  //     } catch (error) {
-  //       console.error("Error fetching customers:", error);
-  //       setCustomers([]);
-  //       setFilteredCustomers([]);
-  //     }
-  //   };
-  //   fetchCustomers();
-  // }, []);
-
-  // Định dạng trạng thái badge
-  const getBadgeClass = (status) => {
-    const classes = {
-      active: "bg-success text-white",
-      inactive: "bg-warning text-dark",
-      suspended: "bg-danger text-white",
+  // Lấy danh sách khách hàng
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      try {
+        const res = await getAccounts();
+        res.data.sort((a, b) => a.id_account - b.id_account);
+        setCustomers(res.data || []);
+        setFilteredCustomers(res.data || []);
+      } catch (error) {
+        console.error("Error fetching customers:", error);
+      }
     };
-    return classes[status] || "bg-secondary text-white";
-  };
+    fetchCustomers();
+  }, []);
 
-  // Lọc khách hàng theo từ khóa và trạng thái
+  // Lọc đơn hàng theo id_account và lưu theo từng khách hàng
+  useEffect(() => {
+    const fetchOrders = async () => {
+      try {
+        setIsLoading(true); // Bật loading khi bắt đầu fetch
+        const res = await getOrders();
+        const allOrders = res.data || [];
+
+        const ordersByAccount = {};
+        allOrders.forEach((order) => {
+          const accountId = order.id_account;
+          if (!ordersByAccount[accountId]) {
+            ordersByAccount[accountId] = [];
+          }
+          ordersByAccount[accountId].push(...(order.order_details || []));
+        });
+
+        setOrderDetails(ordersByAccount);
+      } catch (error) {
+        console.error("Error fetching orders:", error);
+      } finally {
+        setIsLoading(false); // Tắt loading sau khi fetch xong
+      }
+    };
+
+    fetchOrders();
+  }, []);
+
+  // Lọc khách hàng theo từ khóa
   useEffect(() => {
     const filtered = customers.filter((customer) => {
-      const keywordMatch =
-        !searchKeyword || customer.name.toLowerCase().includes(searchKeyword.toLowerCase());
-      const statusFilter =
-        selectedStatus.length === 0 || selectedStatus.includes(customer.status);
-      return keywordMatch && statusFilter;
+      const customerName = customer.full_name || "";
+      const keyword = searchKeyword || "";
+      return customerName.toLowerCase().includes(keyword.toLowerCase());
     });
     setFilteredCustomers(filtered);
-  }, [searchKeyword, selectedStatus, customers]);
+  }, [searchKeyword, customers]);
 
-  // Xử lý chỉnh sửa khách hàng
-  const startEditing = (customer) => {
-    setEditingCustomerId(customer.id);
-    setEditingValues({ name: customer.name, email: customer.email, status: customer.status });
-  };
-
-  const handleFieldChange = (field, value) => {
-    setEditingValues({ ...editingValues, [field]: value });
-  };
-
-  // const saveChanges = async (customerId) => {
-  //   try {
-  //     await updateCustomerDetails(customerId, editingValues); // Giả lập API call
-  //     setCustomers((prev) =>
-  //       prev.map((customer) =>
-  //         customer.id === customerId ? { ...customer, ...editingValues } : customer
-  //       )
-  //     );
-  //     setEditingCustomerId(null);
-  //   } catch (error) {
-  //     console.error("Error updating customer details:", error);
-  //   }
-  // };
-
-  const cancelEditing = () => setEditingCustomerId(null);
-
-  const toggleStatus = (status) => {
-    setSelectedStatus((prev) =>
-      prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]
-    );
+  // Toggle hiển thị đơn hàng
+  const totalOrderDetails = (id_account) => {
+    setExpandedAccountId(expandedAccountId === id_account ? null : id_account);
   };
 
   return (
-    <div className="container-fluid mt-5 py-4" style={{ background: "#f4f7fa" }}>
+    <div
+      className="container-fluid mt-5 py-4"
+      style={{ background: "#f4f7fa" }}
+    >
       <Sidebar />
       <div className="flex-grow-1" style={{ marginLeft: "250px" }}>
         <HeaderAdmin />
         <div className="p-4">
-          <h2 className="fw-bold mb-4" style={{ color: "#1a3c61" }}>Customer Management</h2>
+          <h2 className="fw-bold mb-4" style={{ color: "#1a3c61" }}>
+            Customer Management
+          </h2>
           <div className="d-flex align-items-center gap-3 p-3 bg-white rounded shadow-sm mb-4 flex-wrap">
-            <FaFilter size={20} className="text-primary" />
-            <span className="fw-medium">Filter By</span>
             <input
               type="text"
-              className="form-control w-auto shadow-sm"
+              className="form-control"
+              placeholder="Search by name..."
               value={searchKeyword}
               onChange={(e) => setSearchKeyword(e.target.value)}
-              placeholder="Search by name"
             />
-            <button
-              className="btn btn-primary shadow-sm"
-              onClick={() => setShowFilterBox(!showFilterBox)}
-            >
-              Status
-            </button>
-            <button
-              className="btn btn-outline-danger shadow-sm"
-              onClick={() => {
-                setSearchKeyword("");
-                setSelectedStatus([]);
-              }}
-            >
-              Reset
-            </button>
-            {showFilterBox && (
-              <div className="bg-white shadow p-3 rounded mt-2 position-absolute" style={{ zIndex: 1000 }}>
-                <h6 className="fw-bold mb-3">Select Status</h6>
-                <div className="d-flex flex-wrap gap-2">
-                  {customerStatuses.map((status) => (
-                    <button
-                      key={status}
-                      className={`btn btn-sm ${selectedStatus.includes(status) ? "btn-primary" : "btn-outline-primary"}`}
-                      onClick={() => toggleStatus(status)}
-                    >
-                      {status}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
+
           <div className="card shadow-sm border-0">
             <div className="card-body p-0">
               <table className="table table-hover mb-0">
                 <thead className="bg-primary text-white">
                   <tr>
                     <th className="p-3">ID</th>
-                    <th className="p-3">NAME</th>
-                    <th className="p-3">EMAIL</th>
-                    <th className="p-3">STATUS</th>
-                    <th className="p-3">ACTIONS</th>
+                    <th className="p-3">Name</th>
+                    <th className="p-3">Phone Number</th>
+                    <th className="p-3">Email</th>
+                    <th className="p-3">Order Details</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredCustomers.length > 0 ? (
-                    filteredCustomers.map((customer) => (
-                      <React.Fragment key={customer.id}>
-                        <tr className="align-middle">
-                          <td className="p-3">{customer.id}</td>
-                          <td className="p-3">{customer.name}</td>
-                          <td className="p-3">{customer.email}</td>
-                          <td className="p-3">
-                            {editingCustomerId === customer.id ? (
-                              <select
-                                className="form-select form-select-sm shadow-sm"
-                                value={editingValues.status}
-                                onChange={(e) => handleFieldChange("status", e.target.value)}
+                  {filteredCustomers.map((customer) => (
+                    <React.Fragment key={customer.id_account}>
+                      <tr className="align-middle">
+                        <td className="p-3">{customer.id_account}</td>
+                        <td className="p-3">{customer.full_name}</td>
+                        <td className="p-3">{customer.phone_num}</td>
+                        <td className="p-3">{customer.email}</td>
+                        <td className="p-3">
+                          <button
+                            className="btn btn-primary"
+                            onClick={() =>
+                              totalOrderDetails(customer.id_account)
+                            }
+                          >
+                            {expandedAccountId === customer.id_account
+                              ? "Hide Orders"
+                              : "View Orders"}
+                          </button>
+                        </td>
+                      </tr>
+                      {expandedAccountId === customer.id_account && (
+                        <tr>
+                          <td colSpan="8" className="p-0">
+                            <div className="bg-light p-4 mx-2 mb-3 rounded shadow-sm">
+                              <h5
+                                className="fw-bold mb-3"
+                                style={{ color: "#1a3c61" }}
                               >
-                                {customerStatuses.map((status) => (
-                                  <option key={status} value={status}>
-                                    {status}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <span className={`badge ${getBadgeClass(customer.status)} p-2`}>
-                                {customer.status}
-                              </span>
-                            )}
-                          </td>
-                          <td className="p-3">
-                            <div className="d-flex gap-2">
-                              {editingCustomerId === customer.id ? (
-                                <>
-                                  {/* <button
-                                    className="btn btn-success btn-sm shadow-sm"
-                                    onClick={() => saveChanges(customer.id)}
-                                  >
-                                    <FaSave /> Save
-                                  </button> */}
-                                  <button
-                                    className="btn btn-secondary btn-sm shadow-sm"
-                                    onClick={cancelEditing}
-                                  >
-                                    Cancel
-                                  </button>
-                                </>
-                              ) : (
-                                <button
-                                  className="btn btn-primary btn-sm shadow-sm"
-                                  onClick={() => startEditing(customer)}
-                                >
-                                  <FaEdit /> Edit
-                                </button>
-                              )}
+                                Total order
+                              </h5>
+                              <div className="table-responsive">
+                                <table className="table table-bordered table-striped">
+                                  <thead className="bg-primary text-white">
+                                    <tr>
+                                      <th>No.</th>
+                                      <th>Image</th>
+                                      <th>Book</th>
+                                      <th>Author</th>
+                                      <th>Price</th>
+                                      <th>Discount</th>
+                                      <th>Final Price</th>
+                                      <th>Quantity</th>
+                                      <th>Total</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {isLoading ? (
+                                      <tr style={{ position: "relative" }}>
+                                        <td
+                                          colSpan="8"
+                                          className="text-center py-4 text-muted"
+                                        >
+                                          <Loading isLoading={isLoading} />
+                                        </td>
+                                      </tr>
+                                    ) : orderDetails[customer.id_account]
+                                        ?.length > 0 ? (
+                                      orderDetails[customer.id_account].map(
+                                        (item, index) => {
+                                          const finalPrice =
+                                            calculateFinalPrice(
+                                              item.price,
+                                              item.discount
+                                            );
+                                          const itemTotal =
+                                            finalPrice * item.quantity;
+                                          return (
+                                            <tr key={index}>
+                                              <td className="text-center">
+                                                {index + 1}
+                                              </td>
+                                              <td className="text-center">
+                                                <img
+                                                  src={`data:image/jpeg;base64,${item.image_data}`}
+                                                  alt={item.book_name}
+                                                  className="img-thumbnail"
+                                                  style={{
+                                                    width: "50px",
+                                                    height: "70px",
+                                                    objectFit: "cover",
+                                                  }}
+                                                />
+                                              </td>
+                                              <td>{item.book_name}</td>
+                                              <td>{item.author}</td>
+                                              <td>
+                                                {item.price?.toLocaleString() ||
+                                                  "0"}{" "}
+                                                đ
+                                              </td>
+                                              <td>{item.discount}%</td>
+                                              <td>
+                                                {finalPrice?.toLocaleString() ||
+                                                  "0"}{" "}
+                                                đ
+                                              </td>
+                                              <td>{item.quantity}</td>
+                                              <td>
+                                                {parseInt(
+                                                  itemTotal
+                                                )?.toLocaleString() || "0"}{" "}
+                                                đ
+                                              </td>
+                                            </tr>
+                                          );
+                                        }
+                                      )
+                                    ) : (
+                                      <tr>
+                                        <td
+                                          colSpan="9"
+                                          className="text-center text-muted"
+                                        >
+                                          No orders
+                                        </td>
+                                      </tr>
+                                    )}
+                                  </tbody>
+                                </table>
+                              </div>
                             </div>
                           </td>
                         </tr>
-                      </React.Fragment>
-                    ))
-                  ) : (
-                    <tr>
-                      <td colSpan="5" className="text-center py-4 text-muted">
-                        No customers found
-                      </td>
-                    </tr>
-                  )}
+                      )}
+                    </React.Fragment>
+                  ))}
                 </tbody>
               </table>
             </div>
@@ -264,4 +303,3 @@ const Customer = () => {
 };
 
 export default Customer;
-

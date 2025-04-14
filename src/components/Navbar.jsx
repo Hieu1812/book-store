@@ -139,7 +139,9 @@ const Navbar = ({ user }) => {
                                     style={{ zIndex: 1000, maxHeight: '500px', overflowY: 'auto' }}
                                 >
                                     <div className="list-group list-group-flush">
-                                        {data.map(item => (
+                                        {data
+                                        .filter(product => product.is_active) 
+                                        .map(item => (
                                             <Link
                                                 key={item.id_book}
                                                 to={`/product/${item.id_book}`}
@@ -223,7 +225,7 @@ const Navbar = ({ user }) => {
                                                 <FaUser className="me-2" /> My Profile
                                             </NavLink>
                                         </li>
-                                        {user.role === "1" && (
+                                        {user.role == 1 && (
                                             <li>
                                                 <NavLink className="dropdown-item" to="/dashboard">
                                                     <FaStore className="me-2" /> Seller Dashboard
