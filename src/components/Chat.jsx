@@ -157,7 +157,7 @@ const Chat = () => {
     }
 
     try {
-      const response = await axios.post("https://bookstorenhom11.azurewebsites.net/api/gemini", {
+      const response = await axios.post("https://1c41-14-238-1-138.ngrok-free.app/api/gemini", {
         prompt: prompt,
       });
 
